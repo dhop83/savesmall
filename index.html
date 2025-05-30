@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micro Savings Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .goal-setup {
+            background: #f8f9ff;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid #e1e8ff;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ff;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .progress-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .goal-display {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .goal-display h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            margin-top: 10px;
+            font-size: 1.1em;
+        }
+
+        .add-savings {
+            background: #f0f8ff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid #e1f0ff;
+        }
+
+        .savings-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .savings-input input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e1f0ff;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .encouragement {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .celebration {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #333;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: 600;
+            display: none;
+            animation: bounce 0.5s ease;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .quick-amounts {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .quick-btn {
+            background: #e1f0ff;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .reset-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Micro Savings</h1>
+            <p>Start small, dream big! Every dollar counts.</p>
+        </div>
+
+        <div id="setupSection" class="goal-setup">
+            <h3 style="margin-bottom: 20px; color: #333;">Set Your Micro Goal</h3>
+            
+            <div class="input-group">
+                <label for="goalName">What are you saving for?</label>
+                <input type="text" id="goalName" placeholder="e.g., Coffee fund, Emergency buffer, New book">
+            </div>
+
+            <div class="input-group">
+                <label for="targetAmount">Target Amount ($)</label>
+                <input type="number" id="targetAmount" placeholder="25" min="1" max="500">
+            </div>
+
+            <div class="input-group">
+                <label for="timeframe">Time Goal</label>
+                <select id="timeframe">
+                    <option value="1">1 week</option>
+                    <option value="2">2 weeks</option>
+                    <option value="4">1 month</option>
+                    <option value="8">2 months</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="startGoal()">Start My Goal! 🚀</button>
+        </div>
+
+        <div id="progressSection" class="progress-section">
+            <div class="goal-display">
+                <h3 id="goalTitle">My Savings Goal</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text">
+                    $<span id="currentAmount">0</span> of $<span id="targetDisplay">0</span>
+                    (<span id="progressPercent">0</span>%)
+                </div>
+            </div>
+
+            <div class="celebration" id="celebration">
+                🎉 Congratulations! Goal achieved! 🎉<br>
+                <small>Ready for your next challenge?</small>
+            </div>
+
+            <div class="encouragement" id="encouragement">
+                Great start! Every small step counts toward your goal.
+            </div>
+
+            <div class="add-savings">
+                <h4 style="margin-bottom: 15px; color: #333;">Add to Your Savings</h4>
+                
+                <div class="quick-amounts">
+                    <div class="quick-btn" onclick="addQuickAmount(1)">$1</div>
+                    <div class="quick-btn" onclick="addQuickAmount(5)">$5</div>
+                    <div class="quick-btn" onclick="addQuickAmount(10)">$10</div>
+                    <div class="quick-btn" onclick="addQuickAmount(20)">$20</div>
+                </div>
+
+                <div class="savings-input">
+                    <input type="number" id="savingsAmount" placeholder="Enter amount" min="0.01" step="0.01">
+                    <button class="btn" onclick="addSavings()">Add 💸</button>
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="reset-btn" onclick="resetGoal()">Start New Goal</button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="daysLeft">0</div>
+                    <div class="stat-label">Days Left</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="dailyTarget">$0</div>
+                    <div class="stat-label">Daily Target</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalSaves">0</div>
+                    <div class="stat-label">Times Saved</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentGoal = {
+            name: '',
+            target: 0,
+            current: 0,
+            startDate: null,
+            endDate: null,
+            saveCount: 0
+        };
+
+        const encouragements = [
+            "Amazing progress! You're building a great habit! 🌟",
+            "Every dollar saved is a step closer to your goal! 💪",
+            "You're doing fantastic! Keep up the momentum! 🚀",
+            "Small steps, big dreams! You've got this! ✨",
+            "Look at you go! Your future self will thank you! 🙌",
+            "Consistency is key, and you're nailing it! 🎯",
+            "Your dedication is inspiring! Keep saving! 💎",
+            "Building wealth one dollar at a time! 🏗️",
+            "You're creating positive financial habits! 🌱",
+            "Success is built on small victories like this! 🏆"
+        ];
+
+        function startGoal() {
+            const name = document.getElementById('goalName').value.trim();
+            const target = parseFloat(document.getElementById('targetAmount').value);
+            const weeks = parseInt(document.getElementById('timeframe').value);
+
+            if (!name || !target || target <= 0) {
+                alert('Please fill in all fields with valid values!');
+                return;
+            }
+
+            if (target > 500) {
+                alert('Keep it micro! Try a goal under $500 to start.');
+                return;
+            }
+
+            currentGoal = {
+                name: name,
+                target: target,
+                current: 0,
+                startDate: new Date(),
+                endDate: new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000),
+                saveCount: 0
+            };
+
+            document.getElementById('setupSection').style.display = 'none';
+            document.getElementById('progressSection').style.display = 'block';
+            
+            updateDisplay();
+        }
+
+        function addQuickAmount(amount) {
+            document.getElementById('savingsAmount').value = amount;
+            addSavings();
+        }
+
+        function addSavings() {
+            const amount = parseFloat(document.getElementById('savingsAmount').value);
+            
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount!');
+                return;
+            }
+
+            currentGoal.current += amount;
+            currentGoal.saveCount++;
+            
+            document.getElementById('savingsAmount').value = '';
+            updateDisplay();
+            
+            if (currentGoal.current >= currentGoal.target) {
+                showCelebration();
+            } else {
+                showEncouragement();
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('goalTitle').textContent = `Saving for: ${currentGoal.name}`;
+            document.getElementById('currentAmount').textContent = currentGoal.current.toFixed(2);
+            document.getElementById('targetDisplay').textContent = currentGoal.target.toFixed(2);
+            
+            const percentage = Math.min((currentGoal.current / currentGoal.target) * 100, 100);
+            document.getElementById('progressPercent').textContent = percentage.toFixed(1);
+            document.getElementById('progressFill').style.width = percentage + '%';
+
+            // Update stats
+            const now = new Date();
+            const daysLeft = Math.max(0, Math.ceil((currentGoal.endDate - now) / (1000 * 60 * 60 * 24)));
+            const dailyTarget = daysLeft > 0 ? ((currentGoal.target - currentGoal.current) / daysLeft).toFixed(2) : 0;
+
+            document.getElementById('daysLeft').textContent = daysLeft;
+            document.getElementById('dailyTarget').textContent = '$' + dailyTarget;
+            document.getElementById('totalSaves').textContent = currentGoal.saveCount;
+        }
+
+        function showEncouragement() {
+            const encouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+            document.getElementById('encouragement').textContent = encouragement;
+            document.getElementById('encouragement').style.display = 'block';
+            document.getElementById('celebration').style.display = 'none';
+        }
+
+        function showCelebration() {
+            document.getElementById('celebration').style.display = 'block';
+            document.getElementById('encouragement').style.display = 'none';
+        }
+
+        function resetGoal() {
+            if (confirm('Are you sure you want to start a new goal?')) {
+                document.getElementById('setupSection').style.display = 'block';
+                document.getElementById('progressSection').style.display = 'none';
+                
+                // Reset form
+                document.getElementById('goalName').value = '';
+                document.getElementById('targetAmount').value = '';
+                document.getElementById('timeframe').value = '1';
+            }
+        }
+    </script>
+</body>
+</html>
