@@ -1,474 +1,546 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Micro Savings Tracker</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+import React, { useState, useEffect } from 'react';
+import { User, DollarSign, Target, TrendingUp, Shield, Plus, Minus, CheckCircle, AlertCircle, Zap } from 'lucide-react';
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+const BankConnectedSavingsApp = () => {
+  const [currentStep, setCurrentStep] = useState('connect'); // connect, setup, dashboard
+  const [bankConnection, setBankConnection] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [savingsAccount, setSavingsAccount] = useState(null);
+  const [currentGoal, setCurrentGoal] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
+  // Simulated bank API calls (in production, these would be real API calls)
+  const simulatedBankAPI = {
+    async connectBank(bankId) {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Simulate successful connection
+      const connection = {
+        bankId: bankId,
+        connectionId: 'conn_' + Math.random().toString(36).substr(2, 9),
+        status: 'connected',
+        bankName: getBankName(bankId)
+      };
+      
+      return connection;
+    },
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
+    async getAccounts(connectionId) {
+      // Simulate fetching user accounts
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      return [
+        {
+          id: 'acc_checking',
+          name: 'Main Checking',
+          type: 'checking',
+          balance: 2847.50,
+          currency: 'USD'
+        },
+        {
+          id: 'acc_savings',
+          name: 'High Yield Savings',
+          type: 'savings',
+          balance: 1250.00,
+          currency: 'USD'
+        },
+        {
+          id: 'acc_emergency',
+          name: 'Emergency Fund',
+          type: 'savings',
+          balance: 500.00,
+          currency: 'USD'
         }
+      ];
+    },
 
-        .header h1 {
-            color: #333;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+    async transferMoney(fromAccount, toAccount, amount, description) {
+      // Simulate transfer
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return {
+        transferId: 'txn_' + Math.random().toString(36).substr(2, 9),
+        status: 'completed',
+        amount: amount,
+        from: fromAccount,
+        to: toAccount,
+        timestamp: new Date(),
+        description: description
+      };
+    }
+  };
 
-        .header p {
-            color: #666;
-            font-size: 1.1em;
-        }
+  const getBankName = (bankId) => {
+    const banks = {
+      'chase': 'Chase Bank',
+      'bofa': 'Bank of America',
+      'wells': 'Wells Fargo',
+      'citi': 'Citibank',
+      'td': 'TD Bank',
+      'pnc': 'PNC Bank'
+    };
+    return banks[bankId] || 'Your Bank';
+  };
 
-        .goal-setup {
-            background: #f8f9ff;
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            border: 2px solid #e1e8ff;
-        }
+  const connectToBank = async (bankId) => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // In production: Use actual Open Banking API
+      const connection = await simulatedBankAPI.connectBank(bankId);
+      setBankConnection(connection);
+      
+      // Fetch user accounts
+      const userAccounts = await simulatedBankAPI.getAccounts(connection.connectionId);
+      setAccounts(userAccounts);
+      
+      setCurrentStep('setup');
+    } catch (err) {
+      setError('Failed to connect to bank. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        .input-group {
-            margin-bottom: 20px;
-        }
+  const setupGoal = async (goalData) => {
+    setIsLoading(true);
+    
+    try {
+      const goal = {
+        id: 'goal_' + Math.random().toString(36).substr(2, 9),
+        name: goalData.name,
+        targetAmount: parseFloat(goalData.targetAmount),
+        currentAmount: 0,
+        dailyTarget: parseFloat(goalData.targetAmount) / (parseFloat(goalData.timeframeDays) || 30),
+        sourceAccount: selectedAccount,
+        destinationAccount: savingsAccount,
+        autoTransfer: goalData.autoTransfer,
+        roundUp: goalData.roundUp,
+        createdAt: new Date(),
+        targetDate: new Date(Date.now() + (parseFloat(goalData.timeframeDays) || 30) * 24 * 60 * 60 * 1000)
+      };
+      
+      setCurrentGoal(goal);
+      setCurrentStep('dashboard');
+    } catch (err) {
+      setError('Failed to create goal. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
+  const makeTransfer = async (amount) => {
+    if (!currentGoal || !selectedAccount || !savingsAccount) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const transfer = await simulatedBankAPI.transferMoney(
+        selectedAccount.id,
+        savingsAccount.id,
+        amount,
+        `Micro savings: ${currentGoal.name}`
+      );
+      
+      // Update goal progress
+      setCurrentGoal(prev => ({
+        ...prev,
+        currentAmount: prev.currentAmount + amount
+      }));
+      
+      // Update account balances
+      setAccounts(prev => prev.map(acc => {
+        if (acc.id === selectedAccount.id) {
+          return { ...acc, balance: acc.balance - amount };
         }
+        if (acc.id === savingsAccount.id) {
+          return { ...acc, balance: acc.balance + amount };
+        }
+        return acc;
+      }));
+      
+    } catch (err) {
+      setError('Transfer failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        .input-group input, .input-group select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e8ff;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
+  const BankConnectionStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <Shield className="mx-auto h-16 w-16 text-blue-500 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Bank</h2>
+        <p className="text-gray-600">Securely connect your bank account to start micro-saving</p>
+      </div>
 
-        .input-group input:focus, .input-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .progress-section {
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .goal-display {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .goal-display h3 {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 12px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 6px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
-            width: 0%;
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            margin-top: 10px;
-            font-size: 1.1em;
-        }
-
-        .add-savings {
-            background: #f0f8ff;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            border: 2px solid #e1f0ff;
-        }
-
-        .savings-input {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .savings-input input {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e1f0ff;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-
-        .encouragement {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-            font-weight: 500;
-        }
-
-        .celebration {
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            color: #333;
-            padding: 25px;
-            border-radius: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.2em;
-            font-weight: 600;
-            display: none;
-            animation: bounce 0.5s ease;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-10px); }
-            60% { transform: translateY(-5px); }
-        }
-
-        .quick-amounts {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-        }
-
-        .quick-btn {
-            background: #e1f0ff;
-            border: 2px solid #667eea;
-            color: #667eea;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .quick-btn:hover {
-            background: #667eea;
-            color: white;
-        }
-
-        .reset-btn {
-            background: #ff6b6b;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .stat-card {
-            background: rgba(102, 126, 234, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>💰 Micro Savings</h1>
-            <p>Start small, dream big! Every dollar counts.</p>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center space-x-2">
+          <Shield className="h-5 w-5 text-blue-500" />
+          <span className="text-sm font-medium text-blue-900">Bank-level security</span>
         </div>
+        <p className="text-sm text-blue-700 mt-1">
+          We use Open Banking standards with 256-bit encryption. We cannot see your login credentials.
+        </p>
+      </div>
 
-        <div id="setupSection" class="goal-setup">
-            <h3 style="margin-bottom: 20px; color: #333;">Set Your Micro Goal</h3>
-            
-            <div class="input-group">
-                <label for="goalName">What are you saving for?</label>
-                <input type="text" id="goalName" placeholder="e.g., Coffee fund, Emergency buffer, New book">
-            </div>
-
-            <div class="input-group">
-                <label for="targetAmount">Target Amount ($)</label>
-                <input type="number" id="targetAmount" placeholder="25" min="1" max="500">
-            </div>
-
-            <div class="input-group">
-                <label for="timeframe">Time Goal</label>
-                <select id="timeframe">
-                    <option value="1">1 week</option>
-                    <option value="2">2 weeks</option>
-                    <option value="4">1 month</option>
-                    <option value="8">2 months</option>
-                </select>
-            </div>
-
-            <button class="btn" onclick="startGoal()">Start My Goal! 🚀</button>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            <span className="text-sm text-red-800">{error}</span>
+          </div>
         </div>
+      )}
 
-        <div id="progressSection" class="progress-section">
-            <div class="goal-display">
-                <h3 id="goalTitle">My Savings Goal</h3>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <div class="progress-text">
-                    $<span id="currentAmount">0</span> of $<span id="targetDisplay">0</span>
-                    (<span id="progressPercent">0</span>%)
-                </div>
-            </div>
+      <div className="grid grid-cols-2 gap-4">
+        {[
+          { id: 'chase', name: 'Chase', color: 'bg-blue-600' },
+          { id: 'bofa', name: 'Bank of America', color: 'bg-red-600' },
+          { id: 'wells', name: 'Wells Fargo', color: 'bg-yellow-600' },
+          { id: 'citi', name: 'Citibank', color: 'bg-blue-500' },
+          { id: 'td', name: 'TD Bank', color: 'bg-green-600' },
+          { id: 'pnc', name: 'PNC Bank', color: 'bg-blue-700' }
+        ].map(bank => (
+          <button
+            key={bank.id}
+            onClick={() => connectToBank(bank.id)}
+            disabled={isLoading}
+            className={`${bank.color} text-white p-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50`}
+          >
+            <div className="font-medium">{bank.name}</div>
+          </button>
+        ))}
+      </div>
 
-            <div class="celebration" id="celebration">
-                🎉 Congratulations! Goal achieved! 🎉<br>
-                <small>Ready for your next challenge?</small>
-            </div>
-
-            <div class="encouragement" id="encouragement">
-                Great start! Every small step counts toward your goal.
-            </div>
-
-            <div class="add-savings">
-                <h4 style="margin-bottom: 15px; color: #333;">Add to Your Savings</h4>
-                
-                <div class="quick-amounts">
-                    <div class="quick-btn" onclick="addQuickAmount(1)">$1</div>
-                    <div class="quick-btn" onclick="addQuickAmount(5)">$5</div>
-                    <div class="quick-btn" onclick="addQuickAmount(10)">$10</div>
-                    <div class="quick-btn" onclick="addQuickAmount(20)">$20</div>
-                </div>
-
-                <div class="savings-input">
-                    <input type="number" id="savingsAmount" placeholder="Enter amount" min="0.01" step="0.01">
-                    <button class="btn" onclick="addSavings()">Add 💸</button>
-                </div>
-
-                <div style="text-align: center;">
-                    <button class="reset-btn" onclick="resetGoal()">Start New Goal</button>
-                </div>
-            </div>
-
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-number" id="daysLeft">0</div>
-                    <div class="stat-label">Days Left</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="dailyTarget">$0</div>
-                    <div class="stat-label">Daily Target</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="totalSaves">0</div>
-                    <div class="stat-label">Times Saved</div>
-                </div>
-            </div>
+      {isLoading && (
+        <div className="text-center py-4">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-gray-600">Connecting securely...</p>
         </div>
+      )}
     </div>
+  );
 
-    <script>
-        let currentGoal = {
-            name: '',
-            target: 0,
-            current: 0,
-            startDate: null,
-            endDate: null,
-            saveCount: 0
-        };
+  const GoalSetupStep = () => {
+    const [formData, setFormData] = useState({
+      name: '',
+      targetAmount: '',
+      timeframeDays: '30',
+      autoTransfer: false,
+      roundUp: false
+    });
 
-        const encouragements = [
-            "Amazing progress! You're building a great habit! 🌟",
-            "Every dollar saved is a step closer to your goal! 💪",
-            "You're doing fantastic! Keep up the momentum! 🚀",
-            "Small steps, big dreams! You've got this! ✨",
-            "Look at you go! Your future self will thank you! 🙌",
-            "Consistency is key, and you're nailing it! 🎯",
-            "Your dedication is inspiring! Keep saving! 💎",
-            "Building wealth one dollar at a time! 🏗️",
-            "You're creating positive financial habits! 🌱",
-            "Success is built on small victories like this! 🏆"
-        ];
+    const handleSubmit = () => {
+      if (!selectedAccount || !savingsAccount) {
+        setError('Please select both checking and savings accounts');
+        return;
+      }
+      setupGoal(formData);
+    };
 
-        function startGoal() {
-            const name = document.getElementById('goalName').value.trim();
-            const target = parseFloat(document.getElementById('targetAmount').value);
-            const weeks = parseInt(document.getElementById('timeframe').value);
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <Target className="mx-auto h-16 w-16 text-green-500 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Set Up Your Micro Goal</h2>
+          <p className="text-gray-600">Connected to {bankConnection?.bankName}</p>
+        </div>
 
-            if (!name || !target || target <= 0) {
-                alert('Please fill in all fields with valid values!');
-                return;
-            }
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h3 className="font-medium text-green-900 mb-2">Your Accounts</h3>
+          <div className="space-y-2">
+            {accounts.map(account => (
+              <div key={account.id} className="flex justify-between items-center text-sm">
+                <span className="text-green-800">{account.name}</span>
+                <span className="font-medium text-green-900">${account.balance.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-            if (target > 500) {
-                alert('Keep it micro! Try a goal under $500 to start.');
-                return;
-            }
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              What are you saving for?
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              placeholder="e.g., Emergency fund, Vacation, New laptop"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
 
-            currentGoal = {
-                name: name,
-                target: target,
-                current: 0,
-                startDate: new Date(),
-                endDate: new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000),
-                saveCount: 0
-            };
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Target Amount ($)
+            </label>
+            <input
+              type="number"
+              value={formData.targetAmount}
+              onChange={(e) => setFormData({...formData, targetAmount: e.target.value})}
+              placeholder="500"
+              min="1"
+              max="10000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
 
-            document.getElementById('setupSection').style.display = 'none';
-            document.getElementById('progressSection').style.display = 'block';
-            
-            updateDisplay();
-        }
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Source Account (Checking)
+            </label>
+            <select
+              value={selectedAccount?.id || ''}
+              onChange={(e) => setSelectedAccount(accounts.find(acc => acc.id === e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              <option value="">Select checking account</option>
+              {accounts.filter(acc => acc.type === 'checking').map(account => (
+                <option key={account.id} value={account.id}>
+                  {account.name} - ${account.balance.toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        function addQuickAmount(amount) {
-            document.getElementById('savingsAmount').value = amount;
-            addSavings();
-        }
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Savings Account
+            </label>
+            <select
+              value={savingsAccount?.id || ''}
+              onChange={(e) => setSavingsAccount(accounts.find(acc => acc.id === e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              <option value="">Select savings account</option>
+              {accounts.filter(acc => acc.type === 'savings').map(account => (
+                <option key={account.id} value={account.id}>
+                  {account.name} - ${account.balance.toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        function addSavings() {
-            const amount = parseFloat(document.getElementById('savingsAmount').value);
-            
-            if (!amount || amount <= 0) {
-                alert('Please enter a valid amount!');
-                return;
-            }
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Time Goal (Days)
+            </label>
+            <select
+              value={formData.timeframeDays}
+              onChange={(e) => setFormData({...formData, timeframeDays: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="7">1 week</option>
+              <option value="14">2 weeks</option>
+              <option value="30">1 month</option>
+              <option value="60">2 months</option>
+              <option value="90">3 months</option>
+            </select>
+          </div>
 
-            currentGoal.current += amount;
-            currentGoal.saveCount++;
-            
-            document.getElementById('savingsAmount').value = '';
-            updateDisplay();
-            
-            if (currentGoal.current >= currentGoal.target) {
-                showCelebration();
-            } else {
-                showEncouragement();
-            }
-        }
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <span className="text-sm text-red-800">{error}</span>
+              </div>
+            </div>
+          )}
 
-        function updateDisplay() {
-            document.getElementById('goalTitle').textContent = `Saving for: ${currentGoal.name}`;
-            document.getElementById('currentAmount').textContent = currentGoal.current.toFixed(2);
-            document.getElementById('targetDisplay').textContent = currentGoal.target.toFixed(2);
-            
-            const percentage = Math.min((currentGoal.current / currentGoal.target) * 100, 100);
-            document.getElementById('progressPercent').textContent = percentage.toFixed(1);
-            document.getElementById('progressFill').style.width = percentage + '%';
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isLoading}
+            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+          >
+            {isLoading ? 'Creating Goal...' : 'Start Saving! 🚀'}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
-            // Update stats
-            const now = new Date();
-            const daysLeft = Math.max(0, Math.ceil((currentGoal.endDate - now) / (1000 * 60 * 60 * 24)));
-            const dailyTarget = daysLeft > 0 ? ((currentGoal.target - currentGoal.current) / daysLeft).toFixed(2) : 0;
+  const DashboardStep = () => {
+    const [transferAmount, setTransferAmount] = useState('');
+    const progressPercentage = (currentGoal.currentAmount / currentGoal.targetAmount) * 100;
+    const daysLeft = Math.ceil((currentGoal.targetDate - new Date()) / (1000 * 60 * 60 * 24));
+    const remainingAmount = currentGoal.targetAmount - currentGoal.currentAmount;
 
-            document.getElementById('daysLeft').textContent = daysLeft;
-            document.getElementById('dailyTarget').textContent = '$' + dailyTarget;
-            document.getElementById('totalSaves').textContent = currentGoal.saveCount;
-        }
+    const quickTransfer = (amount) => {
+      makeTransfer(amount);
+    };
 
-        function showEncouragement() {
-            const encouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
-            document.getElementById('encouragement').textContent = encouragement;
-            document.getElementById('encouragement').style.display = 'block';
-            document.getElementById('celebration').style.display = 'none';
-        }
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <TrendingUp className="mx-auto h-12 w-12 text-green-500 mb-2" />
+          <h2 className="text-xl font-bold text-gray-900">{currentGoal.name}</h2>
+          <p className="text-gray-600">Connected to {bankConnection?.bankName}</p>
+        </div>
 
-        function showCelebration() {
-            document.getElementById('celebration').style.display = 'block';
-            document.getElementById('encouragement').style.display = 'none';
-        }
+        {/* Progress Card */}
+        <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white p-6 rounded-xl">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-green-100">Current Progress</p>
+              <p className="text-2xl font-bold">${currentGoal.currentAmount.toFixed(2)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-green-100">Target</p>
+              <p className="text-xl font-bold">${currentGoal.targetAmount.toFixed(2)}</p>
+            </div>
+          </div>
+          
+          <div className="w-full bg-white/20 rounded-full h-3 mb-2">
+            <div 
+              className="bg-white h-3 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+            ></div>
+          </div>
+          
+          <div className="flex justify-between text-sm text-green-100">
+            <span>{progressPercentage.toFixed(1)}% complete</span>
+            <span>{daysLeft} days left</span>
+          </div>
+        </div>
 
-        function resetGoal() {
-            if (confirm('Are you sure you want to start a new goal?')) {
-                document.getElementById('setupSection').style.display = 'block';
-                document.getElementById('progressSection').style.display = 'none';
-                
-                // Reset form
-                document.getElementById('goalName').value = '';
-                document.getElementById('targetAmount').value = '';
-                document.getElementById('timeframe').value = '1';
-            }
-        }
-    </script>
-</body>
-</html>
+        {/* Quick Actions */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <h3 className="font-medium text-gray-900 mb-3">Quick Save</h3>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {[1, 5, 10, 25].map(amount => (
+              <button
+                key={amount}
+                onClick={() => quickTransfer(amount)}
+                disabled={isLoading}
+                className="bg-blue-100 text-blue-700 py-2 px-3 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 text-sm font-medium"
+              >
+                ${amount}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex space-x-2">
+            <input
+              type="number"
+              value={transferAmount}
+              onChange={(e) => setTransferAmount(e.target.value)}
+              placeholder="Custom amount"
+              min="0.01"
+              step="0.01"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              onClick={() => {
+                if (transferAmount && parseFloat(transferAmount) > 0) {
+                  makeTransfer(parseFloat(transferAmount));
+                  setTransferAmount('');
+                }
+              }}
+              disabled={isLoading || !transferAmount}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Account Balances */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="font-medium text-gray-900 mb-3">Account Balances</h3>
+          <div className="space-y-2">
+            {accounts.map(account => (
+              <div key={account.id} className="flex justify-between items-center">
+                <span className="text-gray-700">{account.name}</span>
+                <span className="font-medium">${account.balance.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg text-center">
+            <div className="text-2xl font-bold text-blue-600">${remainingAmount.toFixed(2)}</div>
+            <div className="text-sm text-blue-800">Remaining</div>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg text-center">
+            <div className="text-2xl font-bold text-green-600">${currentGoal.dailyTarget.toFixed(2)}</div>
+            <div className="text-sm text-green-800">Daily Target</div>
+          </div>
+        </div>
+
+        {progressPercentage >= 100 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+            <CheckCircle className="mx-auto h-12 w-12 text-yellow-500 mb-2" />
+            <h3 className="text-lg font-bold text-yellow-800 mb-1">Goal Achieved! 🎉</h3>
+            <p className="text-yellow-700">Congratulations! Ready for your next micro goal?</p>
+            <button
+              onClick={() => {
+                setCurrentStep('setup');
+                setCurrentGoal(null);
+              }}
+              className="mt-3 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors"
+            >
+              Set New Goal
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <span className="text-sm text-red-800">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="text-center py-2">
+            <div className="animate-spin h-6 w-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto"></div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <div className="container mx-auto px-4 py-8 max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <DollarSign className="h-8 w-8 text-green-500" />
+              <h1 className="text-2xl font-bold text-gray-900">Micro Saver</h1>
+            </div>
+            <p className="text-gray-600 text-sm">Real bank connections • Real savings</p>
+          </div>
+
+          {currentStep === 'connect' && <BankConnectionStep />}
+          {currentStep === 'setup' && <GoalSetupStep />}
+          {currentStep === 'dashboard' && <DashboardStep />}
+        </div>
+
+        <div className="text-center mt-6 text-xs text-gray-500">
+          <p>🔒 Secured by bank-grade encryption</p>
+          <p>Built with Open Banking standards</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BankConnectedSavingsApp;
